@@ -1,0 +1,20 @@
+program chuan;
+const aa=100;
+
+VAR x, squ;
+
+PROCEDURE square;
+BEGIN
+	aa := 20;
+   squ:= x * x
+END;
+
+BEGIN
+   x := 1;
+   WHILE x <= 10 DO
+   BEGIN
+      CALL square;
+      
+      x := x + 1
+   END
+END.
