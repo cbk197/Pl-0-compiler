@@ -11,7 +11,7 @@ char Id[MAX_IDENT_LEN];
 char preId[MAX_IDENT_LEN];
 TokenType checkKeyword(char *id){
 	int i ;
-	for(i = 3 ; i < 18; i++){
+	for(i = 3 ; i < 22; i++){
 		if(strcmp(id,TokenTab[i])==0){
 			return i;
 		}

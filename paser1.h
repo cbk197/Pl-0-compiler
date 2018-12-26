@@ -38,14 +38,26 @@ TokenType checkDeclar(char Name[11], TableSymbol *tb) {
 			tmp = tmp->next;
 		}
 		tb1 = tb1->parent;
-	};
-	
+	}
 	return NOTDECLARE;
 };
 
+//check declare in procedure
+TokenType checkDeclarProc(char Name[11], TableSymbol *tb) {
+	Data *tmp;
+	tmp = tb->head;
+	while (tmp != NULL) {
+		if (strcmp(tmp->Name, Name) == 0) return tmp->type;
+		tmp = tmp->next;
+	}
+
+
+	return NOTDECLARE;
+}
+
 // add emlement into Tablesymbol when declare. return SUCCESS if success else return DECLARED
 void enterElement(TableSymbol *tb, char Name[11], TokenType Type, int offset,int countParam) {
-	if (checkDeclar(Name, tb) != NOTDECLARE) {
+	if (checkDeclarProc(Name, tb) != NOTDECLARE) {
 		printf("loi bien da duoc khai bao. tai dong %d cot %d", LineIndex, RowIndex);
 		exit(0);
 	}
@@ -104,14 +116,28 @@ int getOffset(TableSymbol *tb) {
 
 //get countParam of proicedure 
 int getCountParam(TableSymbol *tb, char Name[11]) {
-	Data *tmp; 
-	tmp = tb->head;
-	while (tmp != NULL) {
-		if (strcmp(tmp->Name, Name) == 0) {
-			return tmp->countParam;
-		};
-		tmp = tmp->next;
-	};
+	Data *tmp;
+	TableSymbol *tb1;
+	tb1 = tb;
+	while (tb1 != NULL) {
+		tmp = tb1->head;
+		while (tmp != NULL) {
+			if (strcmp(tmp->Name, Name) == 0) return tmp->countParam;
+			tmp = tmp->next;
+		}
+		tb1 = tb1->parent;
+	}
 	return 0;
 }
 
+//get ofset of variable 
+int getOfsetByName(char Name[11], TableSymbol *tb){
+	Data *tmp;
+	tmp = tb->head;
+	while (tmp != NULL) {
+		if (strcmp(tmp->Name, Name) == 0) {
+			return tmp->offset;
+		}
+	}
+	return 0;
+}
