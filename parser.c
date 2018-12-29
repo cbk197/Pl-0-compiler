@@ -1,6 +1,8 @@
 #include<stdlib.h>
 #include<malloc.h>
 #include"paser1.h"
+#include"generator.h"
+TokenType OP;
 TokenType TokenCondi;
 TableSymbol *tabCurrent;
 void factor();//
@@ -13,19 +15,39 @@ void program();//
 void term() {
 	factor();
 	while (Token == TIMES || Token == SLASH) {
+		if (Token == TIMES) {
+			OP = MUL;
+		}
+		else {
+			OP = DIV;
+		}
 		Token = getToken();
 		factor();
+		enterInstruction(OP, 0, 0);
 	};
 
 };
 void expression() {
 	if (Token == PLUS || Token == MINUS) {
+		if (Token == MINUS) {
+			OP = NEG;
+		}
 		Token = getToken();
 	};
 	term();
+	if (OP == NEG) {
+		enterInstruction(OP, 0, 0);
+	};
 	while (Token == MINUS || Token == PLUS) {
+		if (Token == MINUS) {
+			OP = ADD;
+		}
+		else {
+			OP = SUB;
+		}
 		Token = getToken();
 		term();
+		enterInstruction(OP, 0, 0);
 	};
 
 };
@@ -38,8 +60,35 @@ void condition() {
 	else {
 		expression();
 		if (Token == LEQ || Token == NEQ || Token == LSS || Token == GTR || Token == GEQ || Token == EQU) {
+			if (Token == LEQ) {
+				OP = LE;
+			}
+			else {
+				if (Token == NEQ) {
+					OP = NE;
+				}
+				else {
+					if (Token == LSS) {
+						OP = LT;
+					}
+					else {
+						if (Token == GTR) {
+							OP = GT;
+						}
+						else {
+							if (Token == GEQ) {
+								OP = GE;
+							}
+							else {
+									OP = EQ;
+							}
+						}
+					}
+				}
+			}
 			Token = getToken();
 			expression();
+			enterInstruction(OP, 0, 0);
 		}
 		else {
 			printf("cau lenh dieu kien khong hop le tai dong : %d cot : %d ", LineIndex, RowIndex);
@@ -49,8 +98,11 @@ void condition() {
 
 };
 void statement() {
+	Data *tmp0;
+	int add;
+	int index;
 	if (Token == IDENT) {
-
+		
 		TokenCondi = checkDeclar(Id, tabCurrent);
 		if (TokenCondi == NOTDECLARE) {
 			printf("bien chua duoc khai bao tai dong %d cot %d", LineIndex, RowIndex);
@@ -62,6 +114,9 @@ void statement() {
 				exit(0);
 			}
 		};
+		
+		tmp0 = getElement(Id, tabCurrent);
+		add = getAddr(Id, tabCurrent);
 		Token = getToken();
 		if (Token == LBRACK) {
 			if (TokenCondi != ARRAY) {
@@ -72,6 +127,9 @@ void statement() {
 			expression();
 			if (Token == RBRACK) {
 				Token = getToken();
+				index = stack[T] * 2;
+				
+				enterInstruction(LA, tmp0->baseAddr, add + index);
 			}
 			else {
 				printf("thieu dau dong ngoac vuong tai dong %d  cot : %d ", LineIndex, RowIndex);
@@ -82,11 +140,13 @@ void statement() {
 			if (TokenCondi != VAR) {
 				printf("thieu chi so mang cua bien %s tai dong 5d cot %d ", preId, LineIndex, RowIndex);
 				exit(0);
-			}
+			};
+			enterInstruction(LA, tmp0->baseAddr, add);
 		};
 		if (Token == ASSIGN) {
 			Token = getToken();
 			expression();
+			enterInstruction(ST, 0, 0);
 		}
 		else {
 			printf("thieu toan tu gan tai dong %d  cot : %d ", LineIndex, RowIndex);
@@ -102,6 +162,7 @@ void statement() {
 				tmp = tabCurrent;
 				do {
 					if (checkDeclar(Id, tmp) == PROCEDURE) {
+						tmp0 = getElement(Id, tabCurrent);
 						break;
 					};
 					tmp = tmp->parent;
@@ -115,6 +176,8 @@ void statement() {
 				Token = getToken();
 				if (Token == LPARENT) {
 					Token = getToken();
+					enterInstruction(INT, 4, 0);
+					enterInstruction(LC, tmp0->countParam, 0);
 					expression();
 					count++;
 					while (Token == COMMA) {
@@ -131,6 +194,9 @@ void statement() {
 							printf("thua tham so tai dong %d, cot %d", LineIndex, RowIndex);
 							exit(0);
 						};
+						PC = countCmd + 1;
+						enterInstruction(DCT, 5 + tmp0->countParam, 0);
+						enterInstruction(CAL, tmp0->baseAddr, tmp0->indexCmd);
 						Token = getToken();
 					}
 					else {
@@ -141,10 +207,18 @@ void statement() {
 			}
 			else {
 				if (Token == READ || Token == READLN || Token == WRITE || Token == WRITELN) {
+					if (Token == READ || Token == READLN) {
+						OP = RI;
+					}
+					else {
+						OP = WRI;
+					}
 					Token = getToken();
 					if (Token == LPARENT) {
 						Token = getToken();
 						if (Token == IDENT) {
+							tmp0 = getElement(Id, tabCurrent);
+							add = getAddr(Id, tabCurrent);
 							if (checkDeclar(Id, tabCurrent) == VAR ) {
 								Token = getToken();
 								if (Token == RPARENT) {
@@ -154,6 +228,7 @@ void statement() {
 									printf("thieu dau dong ngoac.tai dong %d cot %d", LineIndex, RowIndex);
 									exit(0);
 								}
+								enterInstruction(LA, tmp0->baseAddr, add);
 							}
 							else {
 								if (checkDeclar(Id, tabCurrent) == ARRAY) {
@@ -162,6 +237,9 @@ void statement() {
 										Token = getToken();
 										expression();
 										if (Token == RBRACK) {
+											index = stack[T];
+											T = T - 1;
+											enterInstruction(LA, tmp0->baseAddr, add+index);
 											Token = getToken();
 											if (Token == RPARENT) {
 												Token = getToken();
@@ -186,6 +264,8 @@ void statement() {
 									exit(0);
 								}
 							}
+							enterInstruction(OP, 0, 0);
+							enterInstruction(WLN, 0, 0);
 							
 						}
 						else {
@@ -221,12 +301,18 @@ void statement() {
 				if (Token == IF) {
 					Token = getToken();
 					condition();
+					int Jump = countCmd;
+					enterInstruction(FJ, 0, 0);
 					if (Token == THEN) {
 						Token = getToken();
 						statement();
+						int Jump2 = countCmd;
+						enterInstruction(J, 0, 0);
 						if (Token == ELSE) {
+							cmdList[Jump].p = countCmd;
 							Token = getToken();
 							statement();
+							cmdList[Jump2].p = countCmd;
 						};
 
 					}
@@ -238,10 +324,17 @@ void statement() {
 				else {
 					if (Token == WHILE) {
 						Token = getToken();
+						
+						int jump3;
+						jump3 = countCmd;
 						condition();
+						int jump = countCmd;
+						enterInstruction(FJ, 0, 0);
 						if (Token == DO) {
 							Token = getToken();
 							statement();
+							enterInstruction(J, jump3, 0);
+							cmdList[jump].p = countCmd;
 						}
 						else {
 							printf(" thieu DO trong vong lap WHILE tai dong : %d cot : %d ", LineIndex, RowIndex);
@@ -252,6 +345,11 @@ void statement() {
 						if (Token == FOR) {
 							Token = getToken();
 							if (Token == IDENT) {
+								tmp0 = getElement(Id, tabCurrent);
+								add = getAddr(Id, tabCurrent);
+								enterInstruction(LA, tmp0->baseAddr, add);
+								enterInstruction(CV, 0, 0);
+
 								if (checkDeclar(Id, tabCurrent) != VAR) {
 									if (checkDeclar(Id, tabCurrent) == NOTDECLARE) {
 										printf("bien chua duoc khai bao tai vi tri dong %d cot %d", LineIndex, RowIndex);
@@ -266,12 +364,30 @@ void statement() {
 								if (Token == ASSIGN) {
 									Token = getToken();
 									expression();
+									enterInstruction(ST, 0, 0);
+									index = countCmd;
+									int jump, jump1;
+									jump1 = countCmd;
+									enterInstruction(CV, 0, 0);
+									enterInstruction(LI, 0, 0);
 									if (Token == TO) {
 										Token = getToken();
 										expression();
+										enterInstruction(LE, 0, 0);
+										jump = countCmd;
+										enterInstruction(FJ, 0, 0);
 										if (Token == DO) {
 											Token = getToken();
 											statement();
+											enterInstruction(CV, 0, 0);
+											enterInstruction(CV, 0, 0);
+											enterInstruction(LI, 0, 0);
+											enterInstruction(LC, 1, 0);
+											enterInstruction(ADD, 0, 0);
+											enterInstruction(ST, 0, 0);
+											enterInstruction(J, jump1, 0);
+											cmdList[jump].p = countCmd;
+											enterInstruction(DCT, 1, 0);
 										}
 										else {
 											printf("thieu DO trong vong lap FOR tai dong: %d cot : %d ", LineIndex, RowIndex);
@@ -319,6 +435,9 @@ void factor() {
 			}
 		}
 		if (checkDeclar(Id, tabCurrent) == ARRAY) {
+			Data *tmp0;
+			tmp0 = getElement(Id, tabCurrent);
+			int add = getAddr(Id, tabCurrent);
 			Token = getToken();
 			if (Token == LBRACK) {
 				Token = getToken();
@@ -329,8 +448,11 @@ void factor() {
 				else {
 					printf("thieu dau dong ngoac vuong tai dong %d cot %d", LineIndex, RowIndex);
 					exit(0);
-				}
-
+				};
+				int p = stack[T]*2;
+				T = T - 1;
+				enterInstruction(LV, tmp0->baseAddr, add + p);
+				
 			}
 			else {
 				printf("thieu chi so mang tai dong %d cot %d", LineIndex, RowIndex);
@@ -338,6 +460,10 @@ void factor() {
 			}
 		}
 		else {
+			Data *tmp0;
+			tmp0 = getElement(Id, tabCurrent);
+			int add = getAddr(Id, tabCurrent);
+			enterInstruction(LV, tmp0->baseAddr, add);
 			Token = getToken();
 			if (Token == LBRACK) {
 				printf("khong phai bien mang. khong the gan chi so. tai dong %d cot %d", LineIndex, RowIndex);
@@ -353,6 +479,7 @@ void factor() {
 				printf("loi tran so tai dong %d cot %d", LineIndex, RowIndex);
 				exit(0);
 			};
+			enterInstruction(LC, Num, 0);
 			Token = getToken();
 		}
 		else {
@@ -376,10 +503,15 @@ void factor() {
 };
 
 void block() {
+	Data *tmp0;
+	int add;
+	int jump, jump1;
 	if (Token == CONST) {
 		Token = getToken();
 		if (Token == IDENT) {
-			enterElement(tabCurrent, Id, CONST, 2, 0);
+			enterElement(tabCurrent, Id, CONST, 2, 0,tabCurrent->baseAddr,NULL);
+			tmp0 = getElement(Id, tabCurrent);
+			add = getAddr(Id, tabCurrent);
 			Token = getToken();
 			if (Token == EQU) {
 				Token = getToken();
@@ -388,11 +520,14 @@ void block() {
 						printf("loi tran so tai dong %d cot %d ", LineIndex, RowIndex);
 						exit(0);
 					};
+					stack[tmp0->baseAddr + add] = Num;
 					Token = getToken();
 					while (Token == COMMA) {
 						Token = getToken();
 						if (Token == IDENT) {
-							enterElement(tabCurrent, Id, CONST, 2, 0);
+							enterElement(tabCurrent, Id, CONST, 2, 0,tabCurrent->baseAddr,NULL);
+							tmp0 = getElement(Id, tabCurrent);
+							add = getAddr(Id, tabCurrent);
 							Token = getToken();
 							if (Token == EQU) {
 								Token = getToken();
@@ -401,6 +536,7 @@ void block() {
 										printf("loi tran so tai dong %d cot %d ", LineIndex, RowIndex);
 										exit(0);
 									};
+									stack[tmp0->baseAddr + add] = Num;
 									Token = getToken();
 								}
 								else {
@@ -457,7 +593,7 @@ void block() {
 					Token = getToken();
 					if (Token == RBRACK) {
 
-						enterElement(tabCurrent, preId, ARRAY, 2 * Num, 0);
+						enterElement(tabCurrent, preId, ARRAY, 2 * Num,0,tabCurrent->baseAddr,NULL);
 						Token = getToken();
 					}
 					else {
@@ -472,7 +608,7 @@ void block() {
 			}
 			else {
 
-				enterElement(tabCurrent, preId, VAR, 2, 0);
+				enterElement(tabCurrent, preId, VAR, 2, 0, tabCurrent->baseAddr, NULL);
 			}
 
 			while (Token == COMMA) {
@@ -488,7 +624,7 @@ void block() {
 							};
 							Token = getToken();
 							if (Token == RBRACK) {
-								enterElement(tabCurrent, preId, ARRAY, 2 * Num, 0);
+								enterElement(tabCurrent, preId, ARRAY, 2 * Num, 0, tabCurrent->baseAddr, NULL);
 								Token = getToken();
 							}
 							else {
@@ -502,7 +638,7 @@ void block() {
 						}
 					}
 					else {
-						enterElement(tabCurrent, preId, VAR, 2, 0);
+						enterElement(tabCurrent, preId, VAR, 2, 0, tabCurrent->baseAddr, NULL);
 					}
 				}
 				else {
@@ -525,12 +661,17 @@ void block() {
 	};
 
 	while (Token == PROCEDURE) {
+		jump = countCmd;
+		enterInstruction(J, 0, 0);
 		Token = getToken();
 		if (Token == IDENT) {
-			enterElement(tabCurrent, Id, PROCEDURE, 0, 0);
+			enterElement(tabCurrent, Id, PROCEDURE, 0, 0,tabCurrent->baseAddr,NULL);
 			TableSymbol *tmpTab;
 			tmpTab = tabCurrent;
 			tabCurrent = mkTable(tmpTab);
+			tmpTab->tail->tb =(void*) tabCurrent;
+			tmpTab->tail->indexCmd = countCmd;
+			enterInstruction(INT,stack[T],0);
 			Token = getToken();
 			if (Token == LPARENT) {
 				int countParam = 0;
@@ -539,7 +680,12 @@ void block() {
 					Token = getToken();
 
 					if (Token == IDENT) {
-						enterElement(tabCurrent, Id, VAR, 2, 0);
+						enterElement(tabCurrent, Id, VAR, 2, 0, tabCurrent->baseAddr, NULL);
+						tmp0 = getElement(Id, tabCurrent);
+						add = getAddr(Id, tabCurrent);
+						enterInstruction(LA, tmp0->baseAddr, add);
+						enterInstruction(LC, stack[B + 5 + countParam], 0);
+						enterInstruction(ST, 0, 0);
 						countParam++;
 						Token = getToken();
 						while (Token == SEMICOLON) {
@@ -548,7 +694,12 @@ void block() {
 								Token = getToken();
 
 								if (Token == IDENT) {
-									enterElement(tabCurrent, Id, VAR, 2, 0);
+									enterElement(tabCurrent, Id, VAR, 2, 0, tabCurrent->baseAddr, NULL);
+									tmp0 = getElement(Id, tabCurrent);
+									add = getAddr(Id, tabCurrent);
+									enterInstruction(LA, tmp0->baseAddr, add);
+									enterInstruction(LC, stack[B + 5 + countParam], 0);
+									enterInstruction(ST, 0, 0);
 									countParam++;
 									Token = getToken();
 								}
@@ -561,7 +712,12 @@ void block() {
 								if (Token == IDENT) {
 									
 										countParam++;
-										enterElement(tabCurrent, Id, VAR, 2, 1);
+										enterElement(tabCurrent, Id, VAR, 2, 1, tabCurrent->baseAddr, NULL);
+										tmp0 = getElement(Id, tabCurrent);
+										add = getAddr(Id, tabCurrent);
+										enterInstruction(LA, tmp0->baseAddr, add);
+										enterInstruction(LC, stack[B + 5 + countParam], 0);
+										enterInstruction(ST, 0, 0);
 										Token = getToken();
 									
 								}
@@ -585,7 +741,12 @@ void block() {
 				else {
 					if (Token == IDENT) {
 						
-							enterElement(tabCurrent, Id, VAR, 2, 1);
+							enterElement(tabCurrent, Id, VAR, 2, 1, tabCurrent->baseAddr, NULL);
+							tmp0 = getElement(Id, tabCurrent);
+							add = getAddr(Id, tabCurrent);
+							enterInstruction(LA, tmp0->baseAddr, add);
+							enterInstruction(LC, stack[B + 5 + countParam], 0);
+							enterInstruction(ST, 0, 0);
 							countParam++;
 							Token = getToken();
 						
@@ -595,7 +756,12 @@ void block() {
 								Token = getToken();
 
 								if (Token == IDENT) {
-									enterElement(tabCurrent, Id, VAR, 2, 0);
+									enterElement(tabCurrent, Id, VAR, 2, 0, tabCurrent->baseAddr, NULL);
+									tmp0 = getElement(Id, tabCurrent);
+									add = getAddr(Id, tabCurrent);
+									enterInstruction(LA, tmp0->baseAddr, add);
+									enterInstruction(LC, stack[B + 5 + countParam], 0);
+									enterInstruction(ST, 0, 0);
 									countParam++;
 									Token = getToken();
 								}
@@ -606,10 +772,13 @@ void block() {
 							}
 							else {
 								if (Token == IDENT) {
-									
-									
 										countParam++;
-										enterElement(tabCurrent, Id, VAR, 2, 1);
+										enterElement(tabCurrent, Id, VAR, 2, 1, tabCurrent->baseAddr, NULL);
+										tmp0 = getElement(Id, tabCurrent);
+										add = getAddr(Id, tabCurrent);
+										enterInstruction(LA, tmp0->baseAddr, add);
+										enterInstruction(LC, stack[B + 5 + countParam], 0);
+										enterInstruction(ST, 0, 0);
 										Token = getToken();
 									
 								}
@@ -625,12 +794,12 @@ void block() {
 						}
 					}
 				}
-
+				enterInstruction(DCT, countParam + 1,0);
 			}
 			if (Token == SEMICOLON) {
 				Token = getToken();
 				block();
-
+				cmdList[jump].p = countCmd;
 				if (Token == SEMICOLON) {
 					Token = getToken();
 				}
@@ -662,8 +831,10 @@ void block() {
 			tmp = tabCurrent;
 			int offset = getOffset(tmp);
 			tabCurrent = tabCurrent->parent;
+			
 			if (tabCurrent != NULL) {
 				tabCurrent->tail->offset = offset;
+				enterInstruction(EP, 0, 0);
 			};
 			deleteTab(tmp);
 			Token = getToken();
@@ -689,6 +860,7 @@ void program() {
 
 				tabCurrent = mkTable(NULL);
 				Token = getToken();
+				enterInstruction(J, 1, 0);
 				block();
 				if (Token == PERIOD) {
 					Token = getToken();
@@ -696,7 +868,8 @@ void program() {
 						printf("chuong trinh ket thuc boi dau cham. thua du lieu sau dau cham.");
 						exit(0);
 					};
-					printf("chuong trinh dung cu phap");
+					printCode();
+					
 				}
 				else {
 					printf("thieu dau cham tai dong : %d cot : %d ", LineIndex, RowIndex);

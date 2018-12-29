@@ -25,7 +25,6 @@ char getCh(){
 	char c ; 
 	c = fgetc(f);
 	LenAdd ++;
-	printf("%c", toupper(c));
 	return toupper(c);
 }
 TokenType getToken(){
@@ -134,7 +133,10 @@ TokenType getToken(){
 		}else if ( Ch == '.'){
 			Ch = getCh();
 			return PERIOD;
-		}else  return NONE;
+		}else  {
+			printf("ky tu khong xac dinh tai dong %d cot %d", LineIndex, RowIndex);
+			exit(0);	
+		};
 			
 		}
 	}

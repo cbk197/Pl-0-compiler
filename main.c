@@ -19,6 +19,7 @@ int main(int argc,char * argv[]){
 	Ch =' ';
 	Token = getToken();
 	program();
+
 	fclose(f);
 	return 0;
 }
